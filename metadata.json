@@ -1,0 +1,6 @@
+{
+  "name": "Amir_Recorder_Pro",
+  "description": "استوديو تسجيل الشاشة والكاميرا الاحترافي بدقة 4K مع مونتاج محلي FFmpeg ومشاركة فورية WebRTC P2P بدون سحابة.",
+  "requestFramePermissions": ["camera", "microphone", "display-capture"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

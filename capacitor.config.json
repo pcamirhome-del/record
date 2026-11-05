@@ -1,0 +1,16 @@
+{
+  "appId": "com.amir.recorderpro",
+  "appName": "Amir_Recorder_Pro",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StealthCamera": {
+      "enableVolumeTriggers": true,
+      "doublePressVolumeDownMs": 600,
+      "silentForegroundChannel": true
+    }
+  }
+}
