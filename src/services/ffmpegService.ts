@@ -177,14 +177,16 @@ class FFmpegStudioService {
           });
 
           const stream = canvas.captureStream(30);
-          const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-            ? 'video/webm;codecs=vp9'
-            : 'video/webm';
+          const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+          const candidates = isIOS
+            ? ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
+            : ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'];
+          const mimeType = candidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
 
-          const recorder = new MediaRecorder(stream, {
-            mimeType,
-            videoBitsPerSecond: 14_000_000,
-          });
+          const recorder = new MediaRecorder(
+            stream,
+            mimeType ? { mimeType, videoBitsPerSecond: 14_000_000 } : { videoBitsPerSecond: 14_000_000 }
+          );
 
           const chunks: BlobPart[] = [];
           recorder.ondataavailable = (e) => {
@@ -193,7 +195,7 @@ class FFmpegStudioService {
 
           recorder.onstop = () => {
             URL.revokeObjectURL(videoUrl);
-            const finalBlob = new Blob(chunks, { type: mimeType });
+            const finalBlob = new Blob(chunks, { type: mimeType || (isIOS ? 'video/mp4' : 'video/webm') });
             onProgress(100, 'اكتمل حفظ وتصدير الفيديو المعدل بنجاح!');
             resolve({
               blob: finalBlob,

@@ -188,7 +188,7 @@ export const LocalGallery: React.FC<LocalGalleryProps> = ({
               يُستخدم هذا الباسورد لفتح أي فيديو مقفل أو فيديوهات الكاميرا الخلفية السرية قبل تشغيلها أو تعديلها.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="mobile-stack-col flex items-center gap-3">
             <input
               type="text"
               value={newPasswordInput}
@@ -198,7 +198,7 @@ export const LocalGallery: React.FC<LocalGalleryProps> = ({
             />
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs cursor-pointer whitespace-nowrap shrink-0"
+              className="mobile-full-btn px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs cursor-pointer whitespace-nowrap shrink-0"
             >
               حفظ الباسورد
             </button>
@@ -224,7 +224,7 @@ export const LocalGallery: React.FC<LocalGalleryProps> = ({
           <button
             type="button"
             onClick={handleGenerateSample}
-            className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs inline-flex items-center gap-2 cursor-pointer"
+            className="mobile-full-btn px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs inline-flex items-center justify-center gap-2 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             توليد فيديو استوديو تجريبي الآن
@@ -292,7 +292,7 @@ export const LocalGallery: React.FC<LocalGalleryProps> = ({
               </div>
 
               {/* Action Buttons Bar: Lock, Play, Trim/Rotate/Text Editor, P2P Transfer, Save */}
-              <div className="p-3 bg-slate-950/70 border-t border-slate-800/80 grid grid-cols-5 gap-1.5">
+              <div className="mobile-gallery-actions p-3 bg-slate-950/70 border-t border-slate-800/80 grid grid-cols-5 gap-1.5">
                 <button
                   type="button"
                   onClick={() => handleVideoActionClick(video, 'play')}

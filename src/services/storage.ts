@@ -64,14 +64,12 @@ export async function generateDemoStudioVideo(): Promise<VideoRecord> {
     }
 
     const stream = canvas.captureStream(30);
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
+    const { mimeType } = getSupportedVideoMimeType();
 
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 6_000_000,
-    });
+    const recorder = new MediaRecorder(
+      stream,
+      mimeType ? { mimeType, videoBitsPerSecond: 6_000_000 } : { videoBitsPerSecond: 6_000_000 }
+    );
 
     const chunks: BlobPart[] = [];
     recorder.ondataavailable = (e) => {
@@ -176,20 +174,76 @@ export async function generateDemoStudioVideo(): Promise<VideoRecord> {
   });
 }
 
+const FOLDER_LABEL_KEY = 'amir_recorder_pro_save_folder_label_v1';
+
+export async function getSavedFolderName(): Promise<string> {
+  const saved = await get<string>(FOLDER_LABEL_KEY);
+  return saved || 'مجلد تنزيلات الجهاز / ألبوم الكاميرا (iPhone Files & Photos)';
+}
+
+export async function setSavedFolderName(name: string): Promise<void> {
+  await set(FOLDER_LABEL_KEY, name.trim());
+}
+
+/**
+ * Returns the best supported video mimeType for the current browser (supports iOS Safari video/mp4 & Chrome/Desktop video/webm)
+ */
+export function getSupportedVideoMimeType(): { mimeType: string; ext: 'mp4' | 'webm' } {
+  if (typeof MediaRecorder === 'undefined') {
+    return { mimeType: 'video/mp4', ext: 'mp4' };
+  }
+  const candidates: Array<{ mime: string; ext: 'mp4' | 'webm' }> = [
+    { mime: 'video/mp4;codecs=avc1,mp4a.40.2', ext: 'mp4' },
+    { mime: 'video/mp4;codecs=avc1', ext: 'mp4' },
+    { mime: 'video/mp4', ext: 'mp4' },
+    { mime: 'video/webm;codecs=vp9,opus', ext: 'webm' },
+    { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' },
+    { mime: 'video/webm', ext: 'webm' },
+  ];
+
+  // On iOS/iPhone prefer mp4 first so it plays and saves cleanly to iOS Photos / Files
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const ordered = isIOS
+    ? candidates
+    : [
+        candidates[3],
+        candidates[4],
+        candidates[5],
+        candidates[0],
+        candidates[1],
+        candidates[2],
+      ];
+
+  for (const item of ordered) {
+    try {
+      if (MediaRecorder.isTypeSupported(item.mime)) {
+        return { mimeType: item.mime, ext: item.ext };
+      }
+    } catch {
+      // continue
+    }
+  }
+  return { mimeType: '', ext: isIOS ? 'mp4' : 'webm' };
+}
+
 /**
  * Saves a video Blob directly to user-selected directory or custom file path
- * using the File System Access API (with automatic anchor download fallback).
+ * on both Mobile (iOS/Android via Web Share File sheet or File Picker) and Desktop PC.
  */
 export async function saveBlobToDiskWithPicker(
   blob: Blob,
   suggestedName: string,
-  dirHandle?: FileSystemDirectoryHandle | null
-): Promise<{ savedPath: string; method: 'directory-handle' | 'file-picker' | 'browser-download' }> {
-  const cleanName = suggestedName.endsWith('.webm') || suggestedName.endsWith('.mp4')
-    ? suggestedName
-    : `${suggestedName}.webm`;
+  dirHandle?: FileSystemDirectoryHandle | null,
+  preferMobileShareSheet = false
+): Promise<{ savedPath: string; method: 'directory-handle' | 'file-picker' | 'ios-share' | 'browser-download' }> {
+  const isMp4 = blob.type.includes('mp4');
+  const defaultExt = isMp4 ? '.mp4' : '.webm';
+  const cleanName =
+    suggestedName.endsWith('.webm') || suggestedName.endsWith('.mp4') || suggestedName.endsWith('.mov')
+      ? suggestedName
+      : `${suggestedName.replace(/\.(webm|mp4)$/i, '')}${defaultExt}`;
 
-  // 1. If a pre-selected Directory Handle exists (from File System Access API)
+  // 1. If a pre-selected Directory Handle exists (Desktop / Android Chrome File System Access API)
   if (dirHandle) {
     try {
       const fileHandle = await dirHandle.getFileHandle(cleanName, { create: true });
@@ -202,7 +256,30 @@ export async function saveBlobToDiskWithPicker(
     }
   }
 
-  // 2. Try showSaveFilePicker API if supported and not blocked by cross-origin iframe
+  // 2. On iPhone / iOS or Mobile when requested, use navigator.share({ files }) so user can choose "Save to Files" (حفظ في الملفات) or "Save Video" (حفظ الفيديو في الاستوديو)
+  const isMobileOrIOS = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+  if ((isMobileOrIOS || preferMobileShareSheet) && ' navigator' in window || (isMobileOrIOS && navigator.canShare)) {
+    try {
+      const file = new File([blob], cleanName, {
+        type: blob.type || (isMp4 ? 'video/mp4' : 'video/webm'),
+      });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: cleanName,
+          text: 'حفظ الفيديو في ملفات الهاتف أو ألبوم الكاميرا',
+        });
+        return { savedPath: `ملفات الآيفون / الاستوديو (${cleanName})`, method: 'ios-share' };
+      }
+    } catch (err) {
+      // If user dismissed share sheet, fall through to direct download only if not AbortError
+      if (err instanceof Error && err.name === 'AbortError') {
+        return { savedPath: `تم إلغاء نافذة الاختيار (${cleanName})`, method: 'ios-share' };
+      }
+    }
+  }
+
+  // 3. Try showSaveFilePicker API if supported (Desktop Chrome / Edge)
   if ('showSaveFilePicker' in window) {
     try {
       const handle = await (window as unknown as {
@@ -212,7 +289,10 @@ export async function saveBlobToDiskWithPicker(
         types: [
           {
             description: 'Video File',
-            accept: { 'video/webm': ['.webm'], 'video/mp4': ['.mp4'] },
+            accept: {
+              'video/mp4': ['.mp4'],
+              'video/webm': ['.webm'],
+            },
           },
         ],
       });
@@ -221,12 +301,11 @@ export async function saveBlobToDiskWithPicker(
       await writable.close();
       return { savedPath: handle.name, method: 'file-picker' };
     } catch (err) {
-      // User canceled or iframe security restriction -> fallback to direct download
       console.info('Falling back to direct browser download:', err);
     }
   }
 
-  // 3. Universal fallback download
+  // 4. Universal fallback download (works on iOS Safari "Download" manager & Desktop)
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -235,5 +314,6 @@ export async function saveBlobToDiskWithPicker(
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 3000);
-  return { savedPath: `Downloads/${cleanName}`, method: 'browser-download' };
+  const customFolder = await getSavedFolderName();
+  return { savedPath: `${customFolder}/${cleanName}`, method: 'browser-download' };
 }

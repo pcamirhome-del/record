@@ -12,7 +12,6 @@ import { StealthCameraHub } from './components/StealthCameraHub';
 import { LocalGallery } from './components/LocalGallery';
 import { VideoEditor } from './components/VideoEditor';
 import { P2PTransferHub } from './components/P2PTransferHub';
-import { ArchitectureGuide } from './components/ArchitectureGuide';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('recorder');
@@ -151,7 +150,7 @@ export default function App() {
 
       {/* Main Workspace Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Secondary Mode Selector & Native Code Switcher inside Workspace */}
+        {/* 5-Tab Workspace Selector (Option 6 hidden as requested) */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-800/60">
           <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800">
             <button
@@ -207,25 +206,14 @@ export default function App() {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              5. مشاركة سريعة للكمبيوتر (WebRTC P2P)
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('architecture')}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                activeTab === 'architecture'
-                  ? 'bg-indigo-500 text-white font-bold'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              6. أكواد Capacitor Native والنشر
+              5. مشاركة سريعة (الموبايل ⇄ الكمبيوتر)
             </button>
           </div>
 
           <div className="text-xs text-slate-400 flex items-center gap-2">
             <span>حفظ محلي 100% بدون سحابة</span>
             <span aria-hidden="true">·</span>
-            <span>IndexedDB & File System API</span>
+            <span>iOS & Desktop Compatible</span>
           </div>
         </div>
 
@@ -235,13 +223,25 @@ export default function App() {
             onVideoSaved={handleVideoSaved}
             directoryHandle={directoryHandle}
             onSelectDirectory={handleSelectDirectory}
+            onNavigateToGallery={() => setActiveTab('gallery')}
           />
         )}
 
         {activeTab === 'stealth' && (
           <StealthCameraHub
+            videos={videos}
             onVideoSaved={handleVideoSaved}
-            onOpenNativeDocs={() => setActiveTab('architecture')}
+            directoryHandle={directoryHandle}
+            onSelectDirectory={handleSelectDirectory}
+            onNavigateToGallery={() => setActiveTab('gallery')}
+            onOpenEditor={(video) => {
+              setSelectedVideoForEdit(video);
+              setActiveTab('editor');
+            }}
+            onOpenTransfer={(video) => {
+              setSelectedVideoForTransfer(video);
+              setActiveTab('transfer');
+            }}
           />
         )}
 
@@ -278,10 +278,10 @@ export default function App() {
             onSelectVideo={setSelectedVideoForTransfer}
             onVideoReceived={handleVideoSaved}
             directoryHandle={directoryHandle}
+            onSelectDirectory={handleSelectDirectory}
+            onNavigateToGallery={() => setActiveTab('gallery')}
           />
         )}
-
-        {activeTab === 'architecture' && <ArchitectureGuide />}
       </main>
     </div>
   );
